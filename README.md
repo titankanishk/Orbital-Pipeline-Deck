@@ -2,7 +2,7 @@
 
 A highly-visual, mission-control themed interactive RISC Pipeline Hazard Simulator designed from first principles. Built entirely with vanilla web technologies, this simulator models true hardware behaviour down to the clock cycle.
 
-![Simulator Interface](screenshot.png)
+![Simulator Interface](Screenshot.png)
 
 ## Overview
 
