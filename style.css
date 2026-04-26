@@ -379,7 +379,6 @@ body {
     background-color: rgba(10, 11, 16, 0.95);
     backdrop-filter: blur(10px);
     z-index: 5;
-    background: transparent;
 }
 
 .inst-label {
@@ -418,10 +417,10 @@ body {
 .node.WB, .node.MEM_WB { background-color: var(--accent-green); box-shadow: 0 0 15px rgba(158, 206, 106, 0.3); }
 
 .node.STALL { 
-    background-color: rgba(255, 83, 112, 0.1); 
+    background-color: rgba(255, 83, 112, 0.2); 
     color: var(--accent-red); 
     border: 2px dashed var(--accent-red); 
-    box-shadow: 0 0 15px rgba(255, 83, 112, 0.1);
+    box-shadow: 0 0 15px rgba(255, 83, 112, 0.2);
 }
 
 .node.EMPTY {
