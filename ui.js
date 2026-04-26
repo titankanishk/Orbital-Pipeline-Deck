@@ -66,7 +66,7 @@ function render_pipeline() {
             if (state && state !== 'RETIRED') {
                 const node = document.createElement('div');
                 node.className = `node ${state}`;
-                node.textContent = state === 'MEM_WB' ? 'MEM/WB' : (state === 'FWD_BYPASS' ? 'FWD' : state);
+                node.textContent = state === 'MEM_WB' ? 'MEM/WB' : state;
                 td.appendChild(node);
             } else {
                 const empty = document.createElement('div');
