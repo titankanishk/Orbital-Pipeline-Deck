@@ -452,10 +452,27 @@ body {
 .log-entry.hazard { color: var(--text-main); }
 
 .hl-hazard-tag {
-    color: var(--accent-red);
     font-weight: bold;
-    text-shadow: 0 0 8px rgba(255, 83, 112, 0.4);
     margin-right: 8px;
+}
+
+.hl-hazard-tag.raw-hazard { color: var(--accent-red); text-shadow: 0 0 8px rgba(255, 83, 112, 0.4); }
+.hl-hazard-tag.load-hazard { color: var(--accent-yellow); text-shadow: 0 0 8px rgba(224, 175, 104, 0.4); }
+.hl-hazard-tag.struct-hazard { color: var(--accent-cyan); text-shadow: 0 0 8px rgba(0, 229, 255, 0.4); }
+
+.hl-opcode {
+    color: var(--accent-pink);
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(247, 118, 142, 0.3);
+}
+
+.hl-stage {
+    color: var(--accent-purple);
+    font-weight: bold;
+    background-color: rgba(187, 154, 247, 0.1);
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid rgba(187, 154, 247, 0.2);
 }
 
 .hl-reg {
