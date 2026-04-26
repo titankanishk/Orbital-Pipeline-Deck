@@ -81,9 +81,16 @@ class PipelineEngine {
 
         for (let i = 0; i < N; i++) {
             if (this.state[i] === 0) {
-                if (i === 0 || new_state[i-1] >= 3) {
-                    new_state[i] = 2; // Needs ID next
+                if (i === 0) {
+                    new_state[i] = 2;
                     out[i] = 'IF';
+                } 
+                else {
+                    // only fetch if previous instruction has left IF/ID safely
+                    if (this.state[i-1] >= 2 && out[i-1] !== 'STALL') {
+                        new_state[i] = 2;
+                        out[i] = 'IF';
+                    }
                 }
             } else if (this.state[i] === 2) {
                 let can_do = true;
