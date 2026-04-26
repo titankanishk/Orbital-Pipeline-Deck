@@ -417,24 +417,11 @@ body {
 .node.MEM { background-color: var(--accent-yellow); box-shadow: 0 0 15px rgba(224, 175, 104, 0.3); }
 .node.WB, .node.MEM_WB { background-color: var(--accent-green); box-shadow: 0 0 15px rgba(158, 206, 106, 0.3); }
 
-.node.DATA_STALL, .node.LOAD_STALL { 
+.node.STALL { 
     background-color: rgba(255, 83, 112, 0.1); 
     color: var(--accent-red); 
     border: 2px dashed var(--accent-red); 
     box-shadow: 0 0 15px rgba(255, 83, 112, 0.1);
-}
-
-.node.ORBITAL_WAIT {
-    background-color: transparent;
-    color: var(--text-muted);
-    border: 2px dashed var(--text-muted);
-}
-
-.node.FWD_BYPASS {
-    background-color: var(--accent-green);
-    color: #000;
-    box-shadow: 0 0 15px var(--accent-green);
-    border: none;
 }
 
 .node.EMPTY {
