@@ -53,9 +53,9 @@ class PipelineEngine {
 
     get_physical_stage(status) {
         if (!status) return null;
-        if (['IF', 'ORBITAL_WAIT'].includes(status)) return 'IF';
-        if (['ID', 'DATA_STALL', 'LOAD_STALL'].includes(status)) return 'ID';
-        if (['EX', 'FWD_BYPASS'].includes(status)) return 'EX';
+        if (status === 'IF') return 'IF';
+        if (status === 'ID' || status === 'STALL') return 'ID';
+        if (status === 'EX') return 'EX';
         if (status === 'MEM') return 'MEM';
         if (status === 'WB') return 'WB';
         if (status === 'MEM_WB') return 'MEM_WB';
@@ -76,9 +76,8 @@ class PipelineEngine {
                 if (i === 0) {
                     next_states[i] = 'IF';
                 } else {
-                    let prev_next = next_states[i-1];
-                    let prev_phys = this.get_physical_stage(prev_next);
-                    if (prev_phys && prev_phys !== 'IF') {
+                    let prev_next = next_states[i - 1];
+                    if (this.get_physical_stage(prev_next) !== 'IF') {
                         next_states[i] = 'IF';
                     } else {
                         next_states[i] = null;
@@ -92,92 +91,59 @@ class PipelineEngine {
                 let physical = this.get_physical_stage(current);
                 
                 if (physical === 'IF' || physical === 'ID') {
-                    // ID acts as a gateway. If it is IF, ORBITAL_WAIT, DATA_STALL, or LOAD_STALL, it wants to successfully ID.
                     if (current === 'ID') {
                         // Successfully completed ID last cycle!
-                        let uses_fwd = false;
-                        if (this.forwarding_enabled) {
-                            for (let j = 0; j < i; j++) {
-                                let older = this.instructions[j];
-                                if (older.dest && (inst.src1 === older.dest || inst.src2 === older.dest)) {
-                                    let older_phys = this.get_physical_stage(next_states[j]);
-                                    if (older_phys === 'MEM' || older_phys === 'WB' || older_phys === 'MEM_WB') {
-                                        uses_fwd = true;
-                                    }
-                                }
-                            }
-                        }
-                        next_states[i] = uses_fwd ? 'FWD_BYPASS' : 'EX';
+                        next_states[i] = 'EX';
                     } else {
-                        // Wants to decode (either from IF, or currently stalled)
-                        let can_attempt_decode = true;
-                        
-                        if (current === 'IF' || current === 'ORBITAL_WAIT') {
-                            if (i > 0) {
-                                let prev_next = next_states[i-1];
-                                let prev_phys = this.get_physical_stage(prev_next);
-                                if (prev_phys === 'ID') {
-                                    can_attempt_decode = false; // Decode occupied
-                                }
-                            }
+                        // Wants to decode
+                        let id_busy = next_states.some(s => this.get_physical_stage(s) === 'ID');
+
+                        if (id_busy) {
+                            next_states[i] = 'STALL';
+                            continue;
                         }
+
+                        let stall_reason = null;
+                        let hazard_log_msg = null;
                         
-                        if (!can_attempt_decode) {
-                            next_states[i] = 'ORBITAL_WAIT';
-                        } else {
-                            let stall_reason = null;
-                            let hazard_log_msg = null;
-                            
-                            let src1_producer = -1;
-                            let src2_producer = -1;
-                            for (let j = i - 1; j >= 0; j--) {
-                                let older = this.instructions[j];
-                                if (older.dest) {
-                                    if (src1_producer === -1 && inst.src1 === older.dest) src1_producer = j;
-                                    if (src2_producer === -1 && inst.src2 === older.dest) src2_producer = j;
-                                }
-                            }
-                            
-                            let producers = [];
-                            if (src1_producer !== -1) producers.push(src1_producer);
-                            if (src2_producer !== -1 && src2_producer !== src1_producer) producers.push(src2_producer);
-                            
-                            for (let j of producers) {
-                                let older = this.instructions[j];
-                                let older_next = next_states[j];
-                                let older_phys = this.get_physical_stage(older_next);
-                                
-                                if (older_next === 'RETIRED') continue;
-                                
-                                if (this.forwarding_enabled) {
-                                    if (older_phys === 'EX') {
-                                        if (older.opcode === 'LW') {
-                                            stall_reason = 'LOAD_STALL';
-                                            hazard_log_msg = `[LOAD-USE HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. LW data is fetched from memory and isn't available until the end of the MEM stage. Pipeline stalled.`;
-                                        }
-                                    }
-                                    else if (older_phys === 'ID' || older_phys === 'IF') {
-                                        stall_reason = 'DATA_STALL';
-                                        hazard_log_msg = `[RAW HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. Data is still being computed by an older instruction. Pipeline stalled.`;
+                        for (let j = i - 1; j >= 0; j--) {
+                            let older = this.instructions[j];
+                            if (!older.dest) continue;
+                        
+                            if (inst.src1 === older.dest || inst.src2 === older.dest) {
+                                let older_phys = this.get_physical_stage(next_states[j]);
+                                if (next_states[j] === 'RETIRED') continue;
+                        
+                                if (!this.forwarding_enabled) {
+                                    if (older_phys !== 'WB' && older_phys !== 'MEM_WB') {
+                                        stall_reason = 'STALL';
+                                        hazard_log_msg = `[RAW HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. Pipeline stalled.`;
                                     }
                                 } else {
-                                    if (older_phys === 'EX' || older_phys === 'MEM' || older_phys === 'MEM_WB' || older_phys === 'ID' || older_phys === 'IF') {
-                                        stall_reason = 'DATA_STALL';
-                                        hazard_log_msg = `[RAW HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. Without forwarding, dependent instructions must wait for older instructions to reach WB. Pipeline stalled.`;
+                                    if (older.opcode === 'LW') {
+                                        if (older_phys === 'EX') {
+                                            stall_reason = 'STALL'; // load-use hazard
+                                            hazard_log_msg = `[LOAD-USE HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. Pipeline stalled.`;
+                                        }
+                                    } else {
+                                        if (older_phys === 'ID' || older_phys === 'IF') {
+                                            stall_reason = 'STALL';
+                                            hazard_log_msg = `[RAW HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. Pipeline stalled.`;
+                                        }
                                     }
                                 }
-                                
-                                if (stall_reason) break;
                             }
-                            
-                            if (stall_reason) {
-                                next_states[i] = stall_reason;
-                                if (hazard_log_msg && !this.hazard_log.includes(hazard_log_msg)) {
-                                    this.hazard_log.push(hazard_log_msg);
-                                }
-                            } else {
-                                next_states[i] = 'ID';
+                        
+                            if (stall_reason) break;
+                        }
+                        
+                        if (stall_reason) {
+                            next_states[i] = stall_reason;
+                            if (hazard_log_msg && !this.hazard_log.includes(hazard_log_msg)) {
+                                this.hazard_log.push(hazard_log_msg);
                             }
+                        } else {
+                            next_states[i] = 'ID';
                         }
                     }
                 }
