@@ -10,7 +10,7 @@ class PipelineEngine {
     }
 
     parse_instruction(raw_text) {
-        let normalized = raw_text.toUpperCase().replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim();
+        let normalized = raw_text.toUpperCase().replace(/[,()]/g, ' ').replace(/\s+/g, ' ');
         let parts = normalized.split(' ');
         let opcode = parts[0];
         let dest = null, src1 = null, src2 = null;
@@ -83,12 +83,12 @@ class PipelineEngine {
             if (this.state[i] === 0) {
                 if (this.pipeline_model === 4) {
                     if (i === 0 || this.state[i-1] >= 2) {
-                        new_state[i] = 2; // Needs ID next
+                        new_state[i] = 2;
                         out[i] = 'IF';
                     }
                 } else {
                     if (i === 0 || (this.state[i-1] >= 2 && out[i-1] !== 'STALL')) {
-                        new_state[i] = 2; // Needs ID next
+                        new_state[i] = 2;
                         out[i] = 'IF';
                     }
                 }
@@ -124,7 +124,7 @@ class PipelineEngine {
                     if (i > 0 && new_state[i-1] <= 3 && new_state[i-1] !== done_state) {
                         can_do = false;
                         if (!hazard_log_msg) {
-                            hazard_log_msg = `[STRUCTURAL HAZARD] Cycle ${cycle}: ${this.instructions[i].id} (${this.instructions[i].opcode}) cannot advance. Stalling ID stage because ${this.instructions[i-1].id} (${this.instructions[i-1].opcode}) is stuck ahead.`;
+                            hazard_log_msg = `[STRUCTURAL HAZARD] Cycle ${cycle}: ${this.instructions[i].id} (${this.instructions[i].opcode}) cannot advance. Stalling ID stage because ${this.instructions[i-1].id} is stuck ahead.`;
                         }
                     }
                 }
@@ -158,7 +158,7 @@ class PipelineEngine {
                     if (i > 0 && new_state[i-1] <= 4 && new_state[i-1] !== done_state) {
                         can_do = false;
                         if (!hazard_log_msg) {
-                            hazard_log_msg = `[STRUCTURAL HAZARD] Cycle ${cycle}: ${this.instructions[i].id} (${this.instructions[i].opcode}) cannot advance. Stalling EX stage because ${this.instructions[i-1].id} (${this.instructions[i-1].opcode}) is stuck ahead.`;
+                            hazard_log_msg = `[STRUCTURAL HAZARD] Cycle ${cycle}: ${this.instructions[i].id} (${this.instructions[i].opcode}) cannot advance. Stalling EX stage because ${this.instructions[i-1].id} is stuck ahead.`;
                         }
                     }
                 }
@@ -183,7 +183,7 @@ class PipelineEngine {
                 } else {
                     out[i] = 'STALL';
                 }
-            } else if (this.state[i] === 5) { // Wants WB (or RETIRED for 4-stage)
+            } else if (this.state[i] === 5) {
                 if (this.pipeline_model === 5) {
                     let can_do = true;
                     if (i > 0 && new_state[i-1] <= 6 && new_state[i-1] !== done_state) {
@@ -223,3 +223,27 @@ class PipelineEngine {
         }
     }
 }
+
+function runTest(testName, program, model) {
+    console.log(`\n=== ${testName} ===`);
+    let p = new PipelineEngine();
+    
+    p.load_program(program, model, false);
+    p.run_all();
+    console.log('Without Forwarding');
+    p.instructions.forEach((inst, i) => {
+        let stages = p.history.map(h => h[i] ? h[i] : '  ').filter((_, cycle) => cycle > 0);
+        console.log(inst.id + ' ' + stages.map(s => s === 'STALL' ? 'ST' : s).join(' ').trim());
+    });
+
+    p.load_program(program, model, true);
+    p.run_all();
+    console.log('With Forwarding');
+    p.instructions.forEach((inst, i) => {
+        let stages = p.history.map(h => h[i] ? h[i] : '  ').filter((_, cycle) => cycle > 0);
+        console.log(inst.id + ' ' + stages.map(s => s === 'STALL' ? 'ST' : s).join(' ').trim());
+    });
+}
+
+runTest("Test Case 5", "add $t0, $t1, $t2\nadd $t0, $t0, $t3\nsub $t4, $t0, $t5", 4);
+runTest("Test Case 5 (5-stage)", "lw R1, 0(R2)\nadd R3, R1, R4\nsub R5, R3, R6", 5);
