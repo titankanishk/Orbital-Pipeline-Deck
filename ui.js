@@ -17,10 +17,22 @@ let isLoaded = false;
 let isFinished = false;
 
 function formatLogMessage(msg) {
-    // Highlight [HAZARD] tags
-    let formatted = msg.replace(/^(\[[^\]]+\])/, '<span class="hl-hazard-tag">$1</span>');
-    // Highlight registers and instruction IDs
+    let formatted = msg;
+    
+    if (formatted.includes('[RAW HAZARD]')) {
+        formatted = formatted.replace(/\[RAW HAZARD\]/, '<span class="hl-hazard-tag raw-hazard">[RAW HAZARD]</span>');
+    } else if (formatted.includes('[LOAD-USE HAZARD]')) {
+        formatted = formatted.replace(/\[LOAD-USE HAZARD\]/, '<span class="hl-hazard-tag load-hazard">[LOAD-USE HAZARD]</span>');
+    } else if (formatted.includes('[STRUCTURAL HAZARD]')) {
+        formatted = formatted.replace(/\[STRUCTURAL HAZARD\]/, '<span class="hl-hazard-tag struct-hazard">[STRUCTURAL HAZARD]</span>');
+    } else {
+        formatted = formatted.replace(/^(\[[^\]]+\])/, '<span class="hl-hazard-tag">$1</span>');
+    }
+    
     formatted = formatted.replace(/\b([R\$][a-zA-Z0-9]+|I\d+)\b/g, '<span class="hl-reg">$1</span>');
+    formatted = formatted.replace(/\b(ADD|SUB|AND|OR|XOR|MUL|ADDI|SUBI|ANDI|ORI|XORI|LW|SW)\b/g, '<span class="hl-opcode">$1</span>');
+    formatted = formatted.replace(/\b(IF|ID|EX|MEM|WB|STALL)\b/g, '<span class="hl-stage">$1</span>');
+    
     return formatted;
 }
 
