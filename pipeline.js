@@ -161,9 +161,9 @@ class PipelineEngine {
                                         hazard_log_msg = `[RAW HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. Data is still being computed by an older instruction. Pipeline stalled.`;
                                     }
                                 } else {
-                                    if (older_phys === 'EX' || older_phys === 'ID' || older_phys === 'IF') {
+                                    if (older_phys === 'EX' || older_phys === 'MEM' || older_phys === 'ID' || older_phys === 'IF') {
                                         stall_reason = 'DATA_STALL';
-                                        hazard_log_msg = `[RAW HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. Without forwarding, dependent instructions must wait for older instructions to reach MEM/WB. Pipeline stalled.`;
+                                        hazard_log_msg = `[RAW HAZARD] Cycle ${this.cycle_counter + 1}: ${inst.id} requires ${older.dest}. Without forwarding, dependent instructions must wait for older instructions to reach WB. Pipeline stalled.`;
                                     }
                                 }
                                 
