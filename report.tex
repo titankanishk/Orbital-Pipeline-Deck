@@ -50,11 +50,11 @@ The simulator parses and supports standard MIPS/RISC-like instruction syntax via
 Hazard detection is driven by a rigorous numerical state-machine algorithm that perfectly matches academic 4-stage and 5-stage pipeline trace rules.
 
 \subsection{Detection Mechanism}
-The engine dynamically checks for data and structural hazards during stage transitions. It scans backward to verify if any older instruction writes to a register required by the current instruction. Furthermore, structural hazards are explicitly enforced: if an instruction is stalled, younger instructions are prevented from advancing, effectively halting the Instruction Fetch (\texttt{IF}) stage to prevent collisions.
+The engine dynamically checks for data and structural hazards during every state transition using a rigorous physical space-reservation model. It scans backward to verify data dependencies. Furthermore, strict structural latches are explicitly enforced: an instruction cannot enter any stage unless the instruction ahead of it has successfully cleared that stage. This produces perfect physical traffic jams, accumulating stalls dynamically. The fetch (\texttt{IF}) stage is also structurally aware, dynamically switching its fetch rhythm between sequential (4-stage) and safely-blocked (5-stage) to perfectly match classical academic trace rules.
 
 \subsection{Resolution Mechanism}
 \begin{itemize}
-    \item \textbf{Without Forwarding:} A dependent instruction is strictly stalled \textit{before} entering the \texttt{ID} stage. It outputs \texttt{STALL} visually and remains locked until the producer instruction has completely finished its \texttt{WB} stage (for 5-stage) or \texttt{MEM} stage (for 4-stage), ensuring data is safely written to the register file.
+    \item \textbf{Without Forwarding:} A dependent instruction is strictly stalled \textit{before} entering the \texttt{ID} stage. It outputs \texttt{STALL} visually and remains locked until the producer instruction has completely finished its \texttt{WB} stage (for 5-stage) or \texttt{MEM} stage (for 4-stage). In a 4-stage model, due to sequential fetching, stalls will dynamically accumulate back into the \texttt{IF} stage, creating a physical logjam until data is safely written to the register file.
     \item \textbf{With Forwarding Enabled:} 
     \begin{itemize}
         \item \textbf{ALU-to-ALU:} Data dependencies are dynamically bypassed. The dependent instruction proceeds directly without stalling.
