@@ -47,18 +47,18 @@ The simulator parses and supports standard MIPS/RISC-like instruction syntax via
 \end{itemize}
 
 \section{Hazard Detection and Resolution Logic}
-Hazard detection is localized entirely within the \textbf{Decode (ID) stage gateway}. Before an instruction is permitted to transition from \texttt{ID} to \texttt{EX}, the engine invokes a \textit{backward-scanning algorithm}.
+Hazard detection is driven by a rigorous numerical state-machine algorithm that perfectly matches academic 4-stage and 5-stage pipeline trace rules.
 
 \subsection{Detection Mechanism}
-The engine iterates backward through the pipeline history to find younger, un-retired instructions currently occupying the \texttt{EX}, \texttt{MEM}, or \texttt{WB} stages. It then checks if the \texttt{dest} (destination) register of any older instruction matches the required \texttt{src} (source) registers of the current instruction.
+The engine dynamically checks for data and structural hazards during stage transitions. It scans backward to verify if any older instruction writes to a register required by the current instruction. Furthermore, structural hazards are explicitly enforced: if an instruction is stalled, younger instructions are prevented from advancing, effectively halting the Instruction Fetch (\texttt{IF}) stage to prevent collisions.
 
 \subsection{Resolution Mechanism}
 \begin{itemize}
-    \item \textbf{Without Forwarding:} A \texttt{STALL} bubble is immediately issued. The dependent instruction remains locked in the \texttt{ID} stage (and pushes \texttt{STALL} visually) until the older instruction reaches the \texttt{WB} stage (or \texttt{MEM\_WB} for a 4-stage pipeline).
+    \item \textbf{Without Forwarding:} A dependent instruction is strictly stalled \textit{before} entering the \texttt{ID} stage. It outputs \texttt{STALL} visually and remains locked until the producer instruction has completely finished its \texttt{WB} stage (for 5-stage) or \texttt{MEM} stage (for 4-stage), ensuring data is safely written to the register file.
     \item \textbf{With Forwarding Enabled:} 
     \begin{itemize}
-        \item If the older instruction is a standard ALU operation (e.g., \texttt{ADD}), the data is dynamically bypassed. The dependent instruction proceeds directly to \texttt{EX} without stalling.
-        \item If the older instruction is \texttt{LW} and is currently in \texttt{EX}, a \textbf{Load-Use Penalty} occurs. A single \texttt{STALL} is inserted, allowing the \texttt{LW} instruction to finish its \texttt{MEM} stage so the loaded data can be successfully forwarded on the subsequent cycle.
+        \item \textbf{ALU-to-ALU:} Data dependencies are dynamically bypassed. The dependent instruction proceeds directly without stalling.
+        \item \textbf{Load-Use Penalty:} If the producer is a \texttt{LW} instruction, its data is only available after memory access. The pipeline injects a \texttt{STALL} to properly align the data delivery. In the 5-stage model, this stall holds the dependent instruction before entering \texttt{ID}. In the 4-stage model, it successfully decodes but stalls before entering \texttt{EX}.
     \end{itemize}
 \end{itemize}
 
@@ -86,7 +86,7 @@ The engine iterates backward through the pipeline history to find younger, un-re
 ADD R1, R2, R3
 SUB R4, R1, R5
 \end{verbatim}
-\textbf{Behavior:} The \texttt{SUB} instruction stalls in \texttt{IF}/\texttt{ID} for exactly 2 cycles until the \texttt{ADD} instruction reaches its \texttt{WB} stage, ensuring \texttt{R1} is safely written back to the register file before being read.
+\textbf{Behavior:} The \texttt{SUB} instruction stalls in the pipeline (before entering \texttt{ID}) for 3 cycles in a 5-stage pipeline, or 2 cycles in a 4-stage pipeline, until the \texttt{ADD} instruction finishes writing to the register file.
 
 \subsection{Test Case 2: Data Forwarding Bypass}
 \textbf{Input:}
@@ -94,7 +94,7 @@ SUB R4, R1, R5
 ADD R1, R2, R3
 SUB R4, R1, R5
 \end{verbatim}
-\textbf{Behavior (Forwarding Enabled):} The \texttt{SUB} instruction does not stall. Instead, the \texttt{ID} stage reads the bypassed data directly from the \texttt{EX}/\texttt{MEM} pipeline registers, allowing the instruction to proceed to \texttt{EX} immediately.
+\textbf{Behavior (Forwarding Enabled):} The \texttt{SUB} instruction does not stall. The \texttt{ID} stage successfully sets up bypass muxes to read data directly from the \texttt{EX}/\texttt{MEM} pipeline registers, allowing the instruction to proceed to \texttt{EX} immediately.
 
 \subsection{Test Case 3: Load-Use Penalty}
 \textbf{Input:}
